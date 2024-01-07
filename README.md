@@ -1,7 +1,7 @@
 The Logtalk GraphPlan Project
 =============================
 
-This project is a port of the [Prolog GraphPlan Project](https://github.com/Mortimerp9/Prolog-Graphplan) to Logtalk. This readme file is adapted from the original readme file to reflect the port changes and how to use it. Notably, this port uses ordered sets and allows concurrently loading ad using multiple domains.
+This project is a port of the [Prolog GraphPlan Project](https://github.com/Mortimerp9/Prolog-Graphplan) to Logtalk. This readme file is adapted from the original readme file to reflect the port changes and how to use it. Notably, this port uses ordered sets and allows concurrently loading and using multiple domains.
 
 The [Graphplan algorithm](http://en.wikipedia.org/wiki/Graphplan) is an [automatic planning](http://en.wikipedia.org/wiki/Automated_planning) algorithm that can compute, given a set of rules, a plan of action to go from an initial state to a final state.
 
@@ -157,7 +157,7 @@ Logtalk port by Paulo Moura.
 Applications
 ============
 
-Currently, this implementation of the graphplan has successfully been used for:
+Currently, this implementation of the graphplan algorithm has successfully been used for:
 
 * Planning Human-Computer Dialogue by P. Andrews.
 
