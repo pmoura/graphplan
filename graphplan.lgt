@@ -22,9 +22,9 @@
 :- object(graphplan).
 
 	:- info([
-		version is 1:0:0,
+		version is 1:0:1,
 		author is 'The Prolog GraphPlan Project; Logtalk port by Paulo Moura',
-		date is 2024-01-07,
+		date is 2024-01-09,
 		comment is 'The Graphplan algorithm is an automatic planning algorithm that can compute, given a set of rules, a plan of action to go from an initial state to a final state.'
 	]).
 
@@ -213,7 +213,7 @@
 
 	mutex_precond_conflict(N) :-
 		N1 is N-1,
-		mutex_condition(N1, Pred1, Pred2),
+		::mutex_condition(N1, Pred1, Pred2),
 		plan_graph(N, pre, Pred1, Action1),
 		plan_graph(N, pre, Pred2, Action2),
 		Action1 \= Action2,
