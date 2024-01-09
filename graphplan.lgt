@@ -22,7 +22,7 @@
 :- object(graphplan).
 
 	:- info([
-		version is 1:0:1,
+		version is 1:1:0,
 		author is 'The Prolog GraphPlan Project; Logtalk port by Paulo Moura',
 		date is 2024-01-09,
 		comment is 'The Graphplan algorithm is an automatic planning algorithm that can compute, given a set of rules, a plan of action to go from an initial state to a final state.'
@@ -74,7 +74,7 @@
 	find_plan(N, CurrentState, InitialState, Plan0, Plan) :-
 		N > 0,
 		find_current_level_actions(N, CurrentState,  [], CurLevelNActions, []),
-		findall(Cond, (member(Action, CurLevelNActions), plan_graph(N, pre, Cond, Action)), PreConds),
+		findall(Cond, (member(Action, CurLevelNActions), plan_graph(pre, N, Cond, Action)), PreConds),
 		list_to_set(PreConds, MidState),
 		% nl, write('Level  '), write(N),
 		% nl, write('Actions : '), nl, write(CurLevelNActions),
@@ -87,7 +87,7 @@
 		member(Pred, CurrentState),
 		choose_action_to_achieve_pred(N, Pred, Action),
 		\+ (member(OtherAction, Actions0), ::mutex_action(N, Action, OtherAction)),
-		findall(Cond, plan_graph(N, add, Cond, Action), AddCondsL),
+		findall(Cond, plan_graph(add, N, Cond, Action), AddCondsL),
 		list_to_set(AddCondsL, AddConds),
 		%% Plan minimality (as described in the paper) is equivalent to redundancy check
 		%% There is no other action which has the same effect i.e. same add conditions
@@ -98,15 +98,15 @@
 		find_current_level_actions(N, CurrentStateMod, Actions1, Actions, CurAdds1).
 
 	choose_action_to_achieve_pred(N, Pred, no_op(X)) :-  %% Generate shorter plans using the following strategy
-		plan_graph(N, add, Pred, no_op(X)).                   %% Be lazy: prefer no ops
+		plan_graph(add, N, Pred, no_op(X)).                   %% Be lazy: prefer no ops
 
 	choose_action_to_achieve_pred(N, Pred, OtherAction) :-    %% Choose real actions only if no ops fail
-		plan_graph(N, add, Pred, OtherAction),
+		plan_graph(add, N, Pred, OtherAction),
 		OtherAction \= no_op(_).
 
 	add_initial_conditions([]).
 	add_initial_conditions([Pred|Conditions]) :-
-		add_plan_graph(0, add, Pred, start),
+		add_plan_graph(add, 0, Pred, start),
 		add_initial_conditions(Conditions).
 
 	generate_graph_nodes(N, _, _) :-
@@ -117,8 +117,8 @@
 		nl, write('Terminating.....'),
 		fail.
 	generate_graph_nodes(N, FinalState, N1) :-
-		N1 is N-1,
-		%% Check if FinalState Conditions have been satisfied 
+		N1 is N - 1,
+		%% Check if FinalState Conditions have been satisfied
 		%% and no mutual exclusion conditions have been violated
 		get_nonmutex_addconds(FinalState, N1, []),
 		% nl, write('Feasible Plan found at level '), write(N1),
@@ -129,7 +129,7 @@
 		fail.
 	generate_graph_nodes(N, _, _) :-
 		::can(Action, PreConditions),
-		NPrev is N-1,
+		NPrev is N - 1,
 		get_nonmutex_addconds(PreConditions, NPrev, []),
 		::deletes(Action, DelPreConditions),
 		%% Instantiation Check
@@ -158,17 +158,17 @@
 	generate_graph_nodes(N, FinalState, FinalLevel) :-
 		% Propagate mutual exclusions
 		mutex(N),
-		N1 is N+1,
+		N1 is N + 1,
 		!,
 		generate_graph_nodes(N1, FinalState, FinalLevel),
 		!.
 
 	get_nonmutex_addconds([], _, _).
 	get_nonmutex_addconds([Pred|Conditions], N, PrePreds) :-
-		plan_graph(N, add, Pred, _),
+		plan_graph(add, N, Pred, _),
 		check_mutex(PrePreds, Pred, N),
 		get_nonmutex_addconds(Conditions, N, [Pred|PrePreds]).
-	
+
 	check_mutex([], _, _).
 	check_mutex([OtherPred|Others], Pred, N) :-
 		\+ ::mutex_condition(N, Pred, OtherPred),
@@ -180,9 +180,9 @@
 		mutex_add_add_conflict(N).
 
 	mutex_add_del_conflict(N) :-
-		plan_graph(N, del, Pred, Action2),
-		(	plan_graph(N, add, Pred, Action1)
-		;	plan_graph(N, pre, Pred, Action1)
+		plan_graph(del, N, Pred, Action2),
+		(	plan_graph(add, N, Pred, Action1)
+		;	plan_graph(pre, N, Pred, Action1)
 		),
 		Action1 \= Action2,
 		insert_action_conflict(N, Action1, Action2),
@@ -195,14 +195,14 @@
 
 	mutex_add_add_conflict(N) :-
 		::mutex_action(N, Action1, Action2),
-		plan_graph(N, add, Pred1, Action1),
-		plan_graph(N, add, Pred2, Action2),
+		plan_graph(add, N, Pred1, Action1),
+		plan_graph(add, N, Pred2, Action2),
 		Action1 \= Action2,
 		Pred1 \= Pred2,
 		\+ ::mutex_condition(N, Pred1, Pred2),
 		\+ (
-			plan_graph(N, add, Pred1, Action11),
-			plan_graph(N, add, Pred2, Action22),
+			plan_graph(add, N, Pred1, Action11),
+			plan_graph(add, N, Pred2, Action22),
 			Action11 \= Action22,
 			\+ ::mutex_action(N, Action11, Action22)
 		),
@@ -214,53 +214,53 @@
 	mutex_precond_conflict(N) :-
 		N1 is N-1,
 		::mutex_condition(N1, Pred1, Pred2),
-		plan_graph(N, pre, Pred1, Action1),
-		plan_graph(N, pre, Pred2, Action2),
+		plan_graph(pre, N, Pred1, Action1),
+		plan_graph(pre, N, Pred2, Action2),
 		Action1 \= Action2,
 		insert_action_conflict(N, Action1, Action2),
 		fail.
 	mutex_precond_conflict(_).
 
-	plan_graph(N, del, Pred, Action) :-
+	plan_graph(del, N, Pred, Action) :-
 		::plan_graph_del(N, Pred, Action).
-	plan_graph(N, pre, Pred, Action) :-
+	plan_graph(pre, N, Pred, Action) :-
 		::plan_graph_pre(N, Pred, Action).
-	plan_graph(N, add, Pred, Action) :-
+	plan_graph(add, N, Pred, Action) :-
 		::plan_graph_add(N, Pred, Action).
 
-	add_plan_graph(N, del, Pred, Action) :-
+	add_plan_graph(del, N, Pred, Action) :-
 		::plan_graph_del(N, Pred, Action),
 		!.
-	add_plan_graph(N, del, Pred, Action) :-
+	add_plan_graph(del, N, Pred, Action) :-
 		::assertz(plan_graph_del(N, Pred, Action)).
-	add_plan_graph(N, pre, Pred, Action) :-
+	add_plan_graph(pre, N, Pred, Action) :-
 		::plan_graph_pre(N, Pred, Action),
 		!.
-	add_plan_graph(N, pre, Pred, Action) :-
+	add_plan_graph(pre, N, Pred, Action) :-
 		::assertz(plan_graph_pre(N, Pred, Action)).
-	add_plan_graph(N, add, Pred, Action) :-
+	add_plan_graph(add, N, Pred, Action) :-
 		::plan_graph_add(N, Pred, Action),
 		!.
-	add_plan_graph(N, add, Pred, Action) :-
+	add_plan_graph(add, N, Pred, Action) :-
 		::assertz(plan_graph_add(N, Pred, Action)).
 
 	add_graph_nodes([], _, _, _).
 	add_graph_nodes([Pred|Conditions], Action, N, Type) :-
-		add_plan_graph(N, Type, Pred, Action),
+		add_plan_graph(Type, N, Pred, Action),
 		add_graph_nodes(Conditions, Action, N, Type).
 
 	add_no_op_nodes(N) :-
-		NPrev is N-1,
-		plan_graph(NPrev, add, Pred, _),
+		NPrev is N - 1,
+		plan_graph(add, NPrev, Pred, _),
 		add_no_op_node(Pred, N),
 		fail.
 	add_no_op_nodes(_).
 
 	add_no_op_node(Pred, N) :-
-		\+ (plan_graph(N, add, Pred, no_op(C)), plan_graph(N, pre, Pred, no_op(C))),
+		\+ (plan_graph(add, N, Pred, no_op(C)), plan_graph(pre, N, Pred, no_op(C))),
 		new_no_op_count(Count),
-		add_plan_graph(N, add, Pred, no_op(Count)),
-		add_plan_graph(N, pre, Pred, no_op(Count)).
+		add_plan_graph(add, N, Pred, no_op(Count)),
+		add_plan_graph(pre, N, Pred, no_op(Count)).
 
 	new_no_op_count(N) :-
 		::retract(no_op_count(N)),
@@ -268,9 +268,7 @@
 		::assertz(no_op_count(N1)).
 
 	add_to_db(Clause) :-
-		::Clause,
-		!.
-	add_to_db(Clause) :-
+		::retractall(Clause),
 		::assertz(Clause).
 
 	write_plan(Plan) :-
